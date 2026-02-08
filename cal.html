@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Додати в календар</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #1a1a2e;
+    color: #e0e0e0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 20px;
+  }
+  .card {
+    background: #16213e;
+    border-radius: 16px;
+    padding: 28px 24px;
+    max-width: 400px;
+    width: 100%;
+    text-align: center;
+    box-shadow: 0 8px 32px rgba(0,0,0,.3);
+  }
+  .icon { font-size: 48px; margin-bottom: 12px; }
+  h1 { font-size: 20px; margin-bottom: 16px; color: #fff; }
+  .info { text-align: left; margin: 16px 0; }
+  .info div { padding: 8px 0; border-bottom: 1px solid #ffffff15; }
+  .info div:last-child { border: none; }
+  .label { font-size: 13px; color: #888; }
+  .value { font-size: 15px; color: #fff; margin-top: 2px; }
+  .btn {
+    display: block;
+    width: 100%;
+    padding: 14px;
+    border: none;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 10px;
+    text-decoration: none;
+    text-align: center;
+  }
+  .btn-apple {
+    background: #0a84ff;
+    color: #fff;
+  }
+  .btn-google {
+    background: #34a853;
+    color: #fff;
+  }
+  .btn:active { opacity: .8; }
+  .cosmetolog {
+    margin-top: 16px;
+    font-size: 13px;
+    color: #888;
+  }
+  .cosmetolog a { color: #aaa; text-decoration: none; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="icon">📅</div>
+  <h1>Запис до косметолога</h1>
+  <div class="info">
+    <div>
+      <div class="label">Послуга</div>
+      <div class="value" id="srv">—</div>
+    </div>
+    <div>
+      <div class="label">Дата</div>
+      <div class="value" id="dt">—</div>
+    </div>
+    <div>
+      <div class="label">Час</div>
+      <div class="value" id="tm">—</div>
+    </div>
+  </div>
+  <a class="btn btn-apple" id="btnApple" href="#">🍎 Додати в Apple Calendar</a>
+  <a class="btn btn-google" id="btnGoogle" href="#" target="_blank">📅 Додати в Google Calendar</a>
+  <div class="cosmetolog">Косметолог: <a href="https://instagram.com/dr_gulvakova" target="_blank">instagram.com/dr_gulvakova</a></div>
+</div>
+<script>
+(function(){
+  var p = new URLSearchParams(window.location.search);
+  var title = p.get('t') || 'Візит';
+  var start = p.get('s') || '';
+  var end   = p.get('e') || '';
+  var desc  = p.get('d') || '';
+
+  // display
+  document.getElementById('srv').textContent = title;
+  if(start){
+    var sd = new Date(start.replace(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z/,'$1-$2-$3T$4:$5:$6Z'));
+    var ed = end ? new Date(end.replace(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z/,'$1-$2-$3T$4:$5:$6Z')) : sd;
+    var opts = {day:'2-digit',month:'2-digit',year:'numeric',timeZone:'Europe/Kyiv'};
+    var topts = {hour:'2-digit',minute:'2-digit',timeZone:'Europe/Kyiv',hour12:false};
+    document.getElementById('dt').textContent = sd.toLocaleDateString('uk-UA', opts);
+    document.getElementById('tm').textContent = sd.toLocaleTimeString('uk-UA', topts) + '–' + ed.toLocaleTimeString('uk-UA', topts);
+  }
+
+  // ICS
+  var ics = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//CosmetologBot//UA',
+    'CALSCALE:GREGORIAN',
+    'METHOD:PUBLISH',
+    'BEGIN:VEVENT',
+    'UID:visit-' + Date.now() + '@cosmetolog-bot',
+    'DTSTAMP:' + start,
+    'DTSTART:' + start,
+    'DTEND:' + (end || start),
+    'SUMMARY:' + title,
+    'DESCRIPTION:' + desc.replace(/\n/g,'\\n'),
+    'LOCATION:Косметолог',
+    'STATUS:CONFIRMED',
+    'BEGIN:VALARM',
+    'TRIGGER:-PT2H',
+    'ACTION:DISPLAY',
+    'DESCRIPTION:Нагадування: через 2 години візит',
+    'END:VALARM',
+    'END:VEVENT',
+    'END:VCALENDAR'
+  ].join('\r\n');
+
+  var blob = new Blob([ics], {type:'text/calendar;charset=utf-8'});
+  var url = URL.createObjectURL(blob);
+
+  document.getElementById('btnApple').href = url;
+  document.getElementById('btnApple').download = 'zapys.ics';
+
+  // Google Calendar
+  var gcal = 'https://calendar.google.com/calendar/render?action=TEMPLATE'
+    + '&text=' + encodeURIComponent(title)
+    + '&dates=' + start + '/' + (end||start)
+    + '&details=' + encodeURIComponent(desc)
+    + '&location=' + encodeURIComponent('Косметолог');
+  document.getElementById('btnGoogle').href = gcal;
+
+  // iOS: auto trigger download
+  var isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+  if(isIOS){
+    setTimeout(function(){
+      window.location.href = url;
+    }, 500);
+  }
+})();
+</script>
+</body>
+</html>
