@@ -47,15 +47,35 @@ h1 { font-size: 20px; margin-bottom: 16px; color: #fff; }
   text-decoration: none;
   text-align: center;
 }
-.btn-apple {
-  background: #0a84ff;
-  color: #fff;
-}
-.btn-google {
-  background: #34a853;
-  color: #fff;
-}
+.btn-apple { background: #0a84ff; color: #fff; }
+.btn-google { background: #34a853; color: #fff; }
+.btn-copy { background: #ff9500; color: #fff; }
 .btn:active { opacity: .8; }
+.tg-banner {
+  background: #2a1a00;
+  border: 1px solid #ff950055;
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+  text-align: left;
+  font-size: 14px;
+  color: #ffcc80;
+  display: none;
+}
+.tg-banner b { color: #ffb74d; }
+.tg-banner .steps {
+  margin-top: 8px;
+  font-size: 13px;
+  color: #cca060;
+  line-height: 1.5;
+}
+.copied-msg {
+  display: none;
+  color: #4caf50;
+  font-size: 14px;
+  font-weight: 600;
+  margin-top: 8px;
+}
 .cosmetolog {
   margin-top: 16px;
   font-size: 13px;
@@ -66,6 +86,12 @@ h1 { font-size: 20px; margin-bottom: 16px; color: #fff; }
 </head>
 <body>
 <div class="card">
+  <div id="tgBanner" class="tg-banner">
+    <b>⚠️ Ви відкрили сторінку в Telegram</b>
+    <div class="steps">
+      Для додавання в календар скопіюйте посилання та відкрийте його в Safari або Chrome:
+    </div>
+  </div>
   <div class="icon">📅</div>
   <h1>Запис до косметолога dr_gulvakova</h1>
   <div class="info">
@@ -86,11 +112,39 @@ h1 { font-size: 20px; margin-bottom: 16px; color: #fff; }
       <div class="value"><a id="locLink" href="#" target="_blank">📍 Відкрити на карті</a></div>
     </div>
   </div>
+
+  <button class="btn btn-copy" id="btnCopy" style="display:none" onclick="copyLink()">📋 Скопіювати посилання</button>
+  <div class="copied-msg" id="copiedMsg">✅ Посилання скопійовано!</div>
+
   <a class="btn btn-apple" id="btnApple" href="#">🍎 Додати в Apple Calendar</a>
   <a class="btn btn-google" id="btnGoogle" href="#" target="_blank">📅 Додати в Google Calendar</a>
   <div class="cosmetolog">Косметолог: <a href="https://instagram.com/dr_gulvakova" target="_blank">instagram.com/dr_gulvakova</a></div>
 </div>
 <script>
+function copyLink(){
+  var url = window.location.href;
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(url).then(function(){
+      showCopied();
+    });
+  } else {
+    var ta = document.createElement('textarea');
+    ta.value = url;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    showCopied();
+  }
+}
+function showCopied(){
+  var m = document.getElementById('copiedMsg');
+  m.style.display = 'block';
+  setTimeout(function(){ m.style.display = 'none'; }, 3000);
+}
+
 (function(){
   var p = new URLSearchParams(window.location.search);
   var title = p.get('t') || 'Візит';
@@ -99,7 +153,17 @@ h1 { font-size: 20px; margin-bottom: 16px; color: #fff; }
   var desc  = p.get('d') || '';
   var loc   = p.get('l') || '';
 
-  // display
+  // Detect Telegram WebView
+  var isTg = (typeof TelegramWebviewProxy !== 'undefined') ||
+             (navigator.userAgent.indexOf('Telegram') !== -1) ||
+             (window.TelegramWebview !== undefined);
+
+  if(isTg){
+    document.getElementById('tgBanner').style.display = 'block';
+    document.getElementById('btnCopy').style.display = 'block';
+  }
+
+  // Display info
   document.getElementById('srv').textContent = title;
   if(start){
     var sd = new Date(start.replace(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z/,'$1-$2-$3T$4:$5:$6Z'));
@@ -117,8 +181,8 @@ h1 { font-size: 20px; margin-bottom: 16px; color: #fff; }
     document.getElementById('locLink').href = loc;
   }
 
-  // ICS
-  var icsLines = [
+  // ICS — data: URI (works better in WebViews than blob:)
+  var ics = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
     'PRODID:-//CosmetologBot//UA',
@@ -147,10 +211,9 @@ h1 { font-size: 20px; margin-bottom: 16px; color: #fff; }
     'END:VCALENDAR'
   ].join('\r\n');
 
-  var blob = new Blob([icsLines], {type:'text/calendar;charset=utf-8'});
-  var url = URL.createObjectURL(blob);
+  var dataUri = 'data:text/calendar;charset=utf-8,' + encodeURIComponent(ics);
 
-  document.getElementById('btnApple').href = url;
+  document.getElementById('btnApple').href = dataUri;
   document.getElementById('btnApple').download = 'zapys.ics';
 
   // Google Calendar
@@ -161,11 +224,11 @@ h1 { font-size: 20px; margin-bottom: 16px; color: #fff; }
     + '&location=' + encodeURIComponent(locDisplay);
   document.getElementById('btnGoogle').href = gcal;
 
-  // iOS: auto trigger download
+  // iOS outside Telegram: auto trigger
   var isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
-  if(isIOS){
+  if(isIOS && !isTg){
     setTimeout(function(){
-      window.location.href = url;
+      window.location.href = dataUri;
     }, 500);
   }
 })();
